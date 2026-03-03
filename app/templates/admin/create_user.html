@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+
+{% block title %}Create User — VPN Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="d-flex align-items-center mb-4">
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary me-3">
+        &larr; Back
+      </a>
+      <h1 class="h3 mb-0">Create User &amp; Peer</h1>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+
+          <h6 class="text-muted mb-3">Account</h6>
+
+          <div class="mb-3">
+            {{ form.username.label(class="form-label") }}
+            {{ form.username(
+                class="form-control" + (" is-invalid" if form.username.errors else ""),
+                autofocus=true,
+                placeholder="e.g. jsmith"
+            ) }}
+            {% for error in form.username.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.password.label(class="form-label") }}
+            {{ form.password(
+                class="form-control" + (" is-invalid" if form.password.errors else ""),
+                placeholder="Min. 8 characters"
+            ) }}
+            {% for error in form.password.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="mb-4">
+            {{ form.confirm_password.label(class="form-label") }}
+            {{ form.confirm_password(
+                class="form-control" + (" is-invalid" if form.confirm_password.errors else "")
+            ) }}
+            {% for error in form.confirm_password.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <h6 class="text-muted mb-3">WireGuard Peer</h6>
+
+          <div class="mb-4">
+            {{ form.peer_name.label(class="form-label") }}
+            {{ form.peer_name(
+                class="form-control" + (" is-invalid" if form.peer_name.errors else ""),
+                placeholder="e.g. Laptop, Phone"
+            ) }}
+            {% if form.peer_name.description %}
+              <div class="form-text">{{ form.peer_name.description }}</div>
+            {% endif %}
+            {% for error in form.peer_name.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="d-grid">
+            {{ form.submit(class="btn btn-primary") }}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
