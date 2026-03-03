@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment folder
+venv/
+env/
+.venv/
+
+# Environment variables file with secrets
+.env
+
+# SQLite database file
+*.db
+*.sqlite3
+
+# Flask instance folder (if you use one)
+instance/
+
+# Pytest cache and coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+
+# VSCode settings (if you use VSCode)
+.vscode/
+
+# Logs
+*.log
+
+# macOS system files
+.DS_Store
+
+# Nginx or other config backups
+*.bak
+
+# Any compiled C extensions or build files
+build/
+dist/
+*.egg-info/
+
+# Ignore wireguard key files (for security)
+*.key
+*.private
+
+# Other sensitive files you don’t want in repo
+secrets/

@@ -1,0 +1,20 @@
+# Core Framework
+Flask>=3.1.2
+python-dotenv>=1.2.1
+
+# Database & Migrations
+Flask-SQLAlchemy>=3.1.1
+Flask-Migrate>=4.1.0
+
+# Security & Auth
+Flask-Login>=0.6.3
+Flask-WTF>=1.2.0
+Flask-Bcrypt>=1.0.1
+Flask-Limiter>=4.1.1
+
+# WireGuard Utilities
+qrcode[pil]>=8.2
+cryptography>=46.0.5
+
+# Production Server
+gunicorn
