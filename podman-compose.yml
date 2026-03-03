@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  vpn-portal:
+    # In production, set CONTAINER_IMAGE=ghcr.io/<owner>/<repo>:latest
+    # and run with: CONTAINER_IMAGE=... podman-compose up -d --no-build
+    image: ${CONTAINER_IMAGE:-vpn-portal:latest}
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: vpn-portal
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Override DATABASE_URL to persist the DB in the named volume below
+      DATABASE_URL: sqlite:////data/vpn_portal.db
+    ports:
+      # Bind only to localhost — nginx proxies from the outside
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # Persistent SQLite database
+      - vpn-portal-data:/data
+      # WireGuard config directory (read/write for wg0.conf)
+      - /etc/wireguard:/etc/wireguard
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+
+volumes:
+  vpn-portal-data:
