@@ -1,4 +1,5 @@
 import io
+import re
 from base64 import b64encode
 
 from flask import abort, render_template, send_file
@@ -25,11 +26,12 @@ def download():
         abort(404)
     config = generate_client_config(peer)
     buf = io.BytesIO(config.encode())
+    safe_name = re.sub(r"[^\w\-]", "_", peer.name)
     return send_file(
         buf,
         mimetype="text/plain",
         as_attachment=True,
-        download_name=f"{peer.name}.conf",
+        download_name=f"{safe_name}.conf",
     )
 
 
