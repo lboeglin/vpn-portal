@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+
+{% block title %}Admin — VPN Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Admin Dashboard</h1>
+  <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
+    + New User &amp; Peer
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-2 fw-bold">{{ user_count }}</div>
+        <div class="text-muted small">Users</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-2 fw-bold">{{ peers | length }}</div>
+        <div class="text-muted small">Total Peers</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-2 fw-bold text-success">
+          {{ peers | selectattr('is_active') | list | length }}
+        </div>
+        <div class="text-muted small">Active Peers</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body">
+        <div class="fs-2 fw-bold text-secondary">
+          {{ peers | rejectattr('is_active') | list | length }}
+        </div>
+        <div class="text-muted small">Inactive Peers</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if peers %}
+<div class="card">
+  <div class="card-header">All Peers</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Peer Name</th>
+          <th>User</th>
+          <th>Assigned IP</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for peer in peers %}
+        <tr>
+          <td class="fw-semibold">{{ peer.name }}</td>
+          <td>{{ peer.user.username }}</td>
+          <td><code>{{ peer.assigned_ip }}</code></td>
+          <td>
+            {% if peer.is_active %}
+              <span class="badge bg-success">Active</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">
+            {{ peer.created_at.strftime('%Y-%m-%d') if peer.created_at else '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-muted py-5">
+    <p class="mb-3">No peers yet.</p>
+    <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary">
+      Create your first user &amp; peer
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
