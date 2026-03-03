@@ -1,4 +1,4 @@
-from .extensions import db
+from .extensions import db, bcrypt
 
 
 class User(db.Model):
@@ -26,6 +26,12 @@ class User(db.Model):
 
     def get_id(self):
         return str(self.id)
+
+    def set_password(self, password: str) -> None:
+        self.password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
+
+    def check_password(self, password: str) -> bool:
+        return bcrypt.check_password_hash(self.password_hash, password)
 
 
 class Peer(db.Model):
