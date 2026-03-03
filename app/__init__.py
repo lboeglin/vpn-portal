@@ -1,4 +1,5 @@
 import os
+import click
 from flask import Flask, render_template
 from dotenv import load_dotenv
 
@@ -27,7 +28,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     @login_manager.user_loader
     def load_user(user_id: str):
-        return models.User.query.get(int(user_id))
+        return db.session.get(models.User, int(user_id))
 
     # Blueprints
     from .auth import bp as auth_bp
@@ -42,5 +43,23 @@ def create_app(config_name: str | None = None) -> Flask:
     @app.route("/")
     def index():
         return render_template("index.html")
+
+    # CLI commands
+    @app.cli.command("seed-admin")
+    def seed_admin():
+        """Create the default admin user if one does not already exist."""
+        username = os.environ.get("ADMIN_USERNAME", "admin")
+        password = os.environ.get("ADMIN_PASSWORD", "changeme")
+
+        existing = models.User.query.filter_by(username=username).first()
+        if existing:
+            click.echo(f"Admin user '{username}' already exists — skipping.")
+            return
+
+        admin = models.User(username=username, role="admin")
+        admin.set_password(password)
+        db.session.add(admin)
+        db.session.commit()
+        click.echo(f"Admin user '{username}' created.")
 
     return app
