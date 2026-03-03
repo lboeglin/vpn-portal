@@ -180,7 +180,8 @@ def sync_config_file() -> None:
 
     active_peers = Peer.query.filter_by(is_active=True).all()
     peer_blocks = [
-        f"[Peer]\n# {p.name}\nPublicKey = {p.public_key}\n"
+        f"[Peer]\n# {p.name.replace(chr(10), ' ').replace(chr(13), ' ')}\n"
+        f"PublicKey = {p.public_key}\n"
         f"AllowedIPs = {p.assigned_ip}/32\n"
         for p in active_peers
     ]

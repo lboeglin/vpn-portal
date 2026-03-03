@@ -21,9 +21,12 @@ def login():
         if user and user.check_password(form.password.data):
             login_user(user)
             next_page = request.args.get("next")
-            # Reject absolute URLs to prevent open redirect
-            if next_page and urlparse(next_page).netloc:
-                next_page = None
+            # Reject any URL with a netloc or scheme to prevent open redirects
+            # (catches http://evil.com, //evil.com, javascript:..., etc.)
+            if next_page:
+                parsed = urlparse(next_page)
+                if parsed.netloc or parsed.scheme:
+                    next_page = None
             return redirect(next_page or url_for("index"))
         flash("Invalid username or password.", "danger")
 
