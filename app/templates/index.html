@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+
+{% block title %}Welcome — VPN Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-6 text-center">
+    <h1 class="display-5 fw-bold">WireGuard VPN Portal</h1>
+    <p class="lead text-muted mt-3">Manage your WireGuard VPN peers from one place.</p>
+    <div class="mt-4">
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('user.dashboard') }}" class="btn btn-primary btn-lg">Go to My VPN</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">Login</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+# Install everything from production first
+-r requirements.txt
+
+# Testing
+pytest>=9.0.2
+pytest-flask>=1.3.0
+
+# Code Quality & Formatting
+black>=26.1.0
+flake8>=7.3.0
