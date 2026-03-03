@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+
+{% block title %}My VPN — VPN Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">My VPN</h1>
+</div>
+
+{% if peer %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">{{ peer.name }}</span>
+        <span class="badge {% if peer.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+          {% if peer.is_active %}Active{% else %}Inactive{% endif %}
+        </span>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4 text-muted">Assigned IP</dt>
+          <dd class="col-sm-8"><code>{{ peer.assigned_ip }}</code></dd>
+          <dt class="col-sm-4 text-muted">Public Key</dt>
+          <dd class="col-sm-8"><code class="text-break">{{ peer.public_key }}</code></dd>
+          <dt class="col-sm-4 text-muted">Created</dt>
+          <dd class="col-sm-8 text-muted small">
+            {{ peer.created_at.strftime('%Y-%m-%d %H:%M') if peer.created_at else '—' }}
+          </dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">WireGuard Config</div>
+      <div class="card-body p-0">
+        <pre class="mb-0 p-3" style="font-size: 0.85rem; white-space: pre-wrap; word-break: break-all;">{{ config }}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body d-grid gap-2">
+        <a href="{{ url_for('user.download') }}" class="btn btn-primary">
+          Download .conf
+        </a>
+        <a href="{{ url_for('user.qr') }}" class="btn btn-outline-secondary">
+          Show QR Code
+        </a>
+      </div>
+      <div class="card-footer text-muted small">
+        Import this config into the WireGuard app on your device.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-muted py-5">
+    <p class="mb-0">No active VPN peer assigned to your account. Contact an administrator.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
