@@ -75,19 +75,25 @@ def create_user():
             )
             db.session.add(peer)
             db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            flash(f"Failed to create user: {exc}", "danger")
+            return render_template("admin/create_user.html", form=form)
 
+        try:
             apply_peer_to_interface(peer)
             sync_config_file()
-
+        except Exception as exc:
             flash(
-                f"User '{user.username}' created with peer"
-                f" '{peer.name}' ({assigned_ip}).",
-                "success",
+                f"User '{user.username}' created but WireGuard sync failed: {exc}",
+                "warning",
             )
             return redirect(url_for("admin.dashboard"))
 
-        except RuntimeError as exc:
-            db.session.rollback()
-            flash(str(exc), "danger")
+        flash(
+            f"User '{user.username}' created with peer '{peer.name}' ({assigned_ip}).",
+            "success",
+        )
+        return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/create_user.html", form=form)
