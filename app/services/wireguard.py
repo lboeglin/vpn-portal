@@ -9,7 +9,6 @@ import base64
 import io
 import ipaddress
 import logging
-import subprocess
 import textwrap
 
 import qrcode
@@ -136,50 +135,44 @@ def generate_qr_code(config_str: str) -> bytes:
 
 
 def apply_peer_to_interface(peer) -> None:
-    """Add or update a peer on the running WireGuard interface.
+    """Signal that a peer should be applied to the WireGuard interface.
 
-    Runs: wg set <interface> peer <pubkey> allowed-ips <ip>/32
-
-    In WG_DEV_MODE the command is logged but not executed.
+    In production the actual ``wg addconf`` is performed by the host-side
+    vpn-portal-wg-sync systemd service that watches the peers config file.
+    This function is a no-op beyond logging; call sync_config_file() to
+    write the peers file that triggers the host service.
 
     Args:
         peer: a Peer model instance (must have public_key, assigned_ip).
     """
     interface = current_app.config["WG_INTERFACE"]
-    cmd = [
-        "wg",
-        "set",
-        interface,
-        "peer",
-        peer.public_key,
-        "allowed-ips",
-        f"{peer.assigned_ip}/32",
-    ]
-
     if current_app.config["WG_DEV_MODE"]:
-        logger.info("[DEV MODE] Would run: %s", " ".join(cmd))
+        logger.info(
+            "[DEV MODE] Peer %s… would be applied to %s",
+            peer.public_key[:8],
+            interface,
+        )
         return
-
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        logger.error("wg set failed (rc=%d): %s", result.returncode, result.stderr.strip())
-        raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
-    logger.info("Applied peer %s… to interface %s", peer.public_key[:8], interface)
+    logger.info(
+        "Peer %s… queued for interface %s (applied by host sync service)",
+        peer.public_key[:8],
+        interface,
+    )
 
 
 def sync_config_file() -> None:
-    """Rewrite the WireGuard config file and sync it with the running interface.
+    """Write all active peers to the vpn-portal peers config file.
 
-    Reads the [Interface] block from the existing on-disk config, replaces all
-    [Peer] sections with the currently active peers from the database, writes the
-    result back, then runs ``wg syncconf`` to apply changes atomically.
+    Writes /etc/wireguard/vpn-portal-peers.conf with [Peer] blocks for every
+    active peer in the database.  The host-side vpn-portal-wg-sync systemd
+    path unit detects changes to this file and runs ``wg addconf`` +
+    persists the peers to wg0.conf — no CAP_NET_ADMIN needed in the container.
 
-    In WG_DEV_MODE the file content and command are logged but not applied.
+    In WG_DEV_MODE the content is logged but the file is not written.
     """
     from ..models import Peer  # local import to avoid circular deps at module load
 
-    interface = current_app.config["WG_INTERFACE"]
-    config_path = f"/etc/wireguard/{interface}.conf"
+    peers_conf_path = "/etc/wireguard/vpn-portal-peers.conf"
 
     active_peers = Peer.query.filter_by(is_active=True).all()
     peer_blocks = [
@@ -192,48 +185,14 @@ def sync_config_file() -> None:
 
     if current_app.config["WG_DEV_MODE"]:
         logger.info(
-            "[DEV MODE] Would write peer section to %s:\n%s",
-            config_path,
+            "[DEV MODE] Would write peer config to %s:\n%s",
+            peers_conf_path,
             peer_section,
         )
-        logger.info("[DEV MODE] Would run: wg syncconf %s %s", interface, config_path)
         return
 
-    interface_block = _read_interface_block(config_path)
-    full_config = interface_block + "\n" + peer_section
-
-    with open(config_path, "w") as fh:
-        fh.write(full_config)
-
-    subprocess.run(
-        ["wg", "syncconf", interface, config_path],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    logger.info("Synced %d active peer(s) to %s", len(active_peers), config_path)
+    with open(peers_conf_path, "w") as fh:
+        fh.write(peer_section + "\n")
+    logger.info("Wrote %d active peer(s) to %s", len(active_peers), peers_conf_path)
 
 
-def _read_interface_block(config_path: str) -> str:
-    """Extract and return the [Interface] section from an existing wg conf file.
-
-    Returns an empty string if the file does not exist or has no [Interface] block.
-    """
-    try:
-        with open(config_path) as fh:
-            lines = fh.readlines()
-    except FileNotFoundError:
-        return ""
-
-    interface_lines: list[str] = []
-    in_interface = False
-    for line in lines:
-        stripped = line.strip()
-        if stripped == "[Interface]":
-            in_interface = True
-        elif stripped.startswith("[") and stripped.endswith("]") and in_interface:
-            break  # reached the next section
-        if in_interface:
-            interface_lines.append(line)
-
-    return "".join(interface_lines)
