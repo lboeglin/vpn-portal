@@ -18,8 +18,10 @@ services:
     volumes:
       # Persistent SQLite database
       - vpn-portal-data:/data
-      # WireGuard config directory (read/write for wg0.conf)
-      - /etc/wireguard:/etc/wireguard
+      # WireGuard config directory (read-only — host service writes wg0.conf)
+      - /etc/wireguard:/etc/wireguard:ro
+      # Shared dir for peers file written by the app, read by host sync service
+      - /var/lib/vpn-portal:/var/lib/vpn-portal:z
     cap_add:
       - NET_ADMIN
 
