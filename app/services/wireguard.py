@@ -163,7 +163,7 @@ def apply_peer_to_interface(peer) -> None:
 def sync_config_file() -> None:
     """Write all active peers to the vpn-portal peers config file.
 
-    Writes /etc/wireguard/vpn-portal-peers.conf with [Peer] blocks for every
+    Writes /var/lib/vpn-portal/peers.conf with [Peer] blocks for every
     active peer in the database.  The host-side vpn-portal-wg-sync systemd
     path unit detects changes to this file and runs ``wg addconf`` +
     persists the peers to wg0.conf — no CAP_NET_ADMIN needed in the container.
