@@ -14,9 +14,7 @@ services:
     environment:
       # Override DATABASE_URL to persist the DB in the named volume below
       DATABASE_URL: sqlite:////data/vpn_portal.db
-    ports:
-      # Bind only to localhost — nginx proxies from the outside
-      - "127.0.0.1:8000:8000"
+    network_mode: host
     volumes:
       # Persistent SQLite database
       - vpn-portal-data:/data
@@ -24,8 +22,6 @@ services:
       - /etc/wireguard:/etc/wireguard
     cap_add:
       - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
 
 volumes:
   vpn-portal-data:
