@@ -2,7 +2,7 @@
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Build](https://img.shields.io/github/actions/workflow/status/<owner>/<repo>/deploy.yml?branch=main&label=build)
+![Build](https://img.shields.io/github/actions/workflow/status/lboeglin/vpn-portal/deploy.yml?branch=main&label=build)
 
 A self-hosted web portal for managing WireGuard VPN configurations. Administrators create user accounts; each user can log in to view, download, and scan their WireGuard config as a QR code. No command-line access required.
 
