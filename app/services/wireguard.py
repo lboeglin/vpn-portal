@@ -172,7 +172,7 @@ def sync_config_file() -> None:
     """
     from ..models import Peer  # local import to avoid circular deps at module load
 
-    peers_conf_path = "/etc/wireguard/vpn-portal-peers.conf"
+    peers_conf_path = "/var/lib/vpn-portal/peers.conf"
 
     active_peers = Peer.query.filter_by(is_active=True).all()
     peer_blocks = [
@@ -184,11 +184,7 @@ def sync_config_file() -> None:
     peer_section = "\n".join(peer_blocks)
 
     if current_app.config["WG_DEV_MODE"]:
-        logger.info(
-            "[DEV MODE] Would write peer config to %s:\n%s",
-            peers_conf_path,
-            peer_section,
-        )
+        logger.info("[DEV MODE] Would write peer config to %s:\n%s", peers_conf_path, peer_section)
         return
 
     with open(peers_conf_path, "w") as fh:
