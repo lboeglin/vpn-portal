@@ -160,7 +160,10 @@ def apply_peer_to_interface(peer) -> None:
         logger.info("[DEV MODE] Would run: %s", " ".join(cmd))
         return
 
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        logger.error("wg set failed (rc=%d): %s", result.returncode, result.stderr.strip())
+        raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
     logger.info("Applied peer %s… to interface %s", peer.public_key[:8], interface)
 
 
