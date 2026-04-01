@@ -73,7 +73,7 @@ jobs:
 
             echo "Restarting vpn-portal ..."
             cd /opt/vpn-portal
-            CONTAINER_IMAGE="$IMAGE" podman-compose up -d --no-build
+            CONTAINER_IMAGE="$IMAGE" podman-compose up -d --no-build --force-recreate
 
             echo "Pruning old images ..."
             podman image prune -f
