@@ -4,9 +4,9 @@ from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 
 from . import bp
-from .forms import LoginForm
+from .forms import ChangePasswordForm, LoginForm
+from ..extensions import db, limiter
 from ..models import User
-from ..extensions import limiter
 
 
 @bp.route("/login", methods=["GET", "POST"])
@@ -39,3 +39,19 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("auth.login"))
+
+
+@bp.route("/change-password", methods=["GET", "POST"])
+@login_required
+@limiter.limit("5 per minute")
+def change_password():
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        if not current_user.check_password(form.current_password.data):
+            flash("Current password is incorrect.", "danger")
+            return render_template("auth/change_password.html", form=form)
+        current_user.set_password(form.new_password.data)
+        db.session.commit()
+        flash("Password changed successfully.", "success")
+        return redirect(url_for("user.dashboard"))
+    return render_template("auth/change_password.html", form=form)

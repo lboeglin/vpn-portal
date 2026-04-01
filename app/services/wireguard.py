@@ -9,6 +9,7 @@ import base64
 import io
 import ipaddress
 import logging
+import subprocess
 import textwrap
 
 import qrcode
@@ -135,44 +136,60 @@ def generate_qr_code(config_str: str) -> bytes:
 
 
 def apply_peer_to_interface(peer) -> None:
-    """Signal that a peer should be applied to the WireGuard interface.
-
-    In production the actual ``wg addconf`` is performed by the host-side
-    vpn-portal-wg-sync systemd service that watches the peers config file.
-    This function is a no-op beyond logging; call sync_config_file() to
-    write the peers file that triggers the host service.
+    """Add a peer to the live WireGuard interface via ``wg set``.
 
     Args:
         peer: a Peer model instance (must have public_key, assigned_ip).
     """
     interface = current_app.config["WG_INTERFACE"]
-    if current_app.config["WG_DEV_MODE"]:
-        logger.info(
-            "[DEV MODE] Peer %s… would be applied to %s",
-            peer.public_key[:8],
-            interface,
-        )
-        return
-    logger.info(
-        "Peer %s… queued for interface %s (applied by host sync service)",
-        peer.public_key[:8],
+    cmd = [
+        "wg",
+        "set",
         interface,
-    )
+        "peer",
+        peer.public_key,
+        "allowed-ips",
+        f"{peer.assigned_ip}/32",
+    ]
+    if current_app.config["WG_DEV_MODE"]:
+        logger.info("[DEV MODE] Would run: %s", " ".join(cmd))
+        return
+    subprocess.run(cmd, check=True)
+
+
+def _read_interface_block(path: str) -> str:
+    """Return the [Interface] section from a wg conf file, or '' if absent/missing."""
+    try:
+        with open(path) as fh:
+            content = fh.read()
+    except FileNotFoundError:
+        return ""
+
+    lines = []
+    in_interface = False
+    for line in content.splitlines(keepends=True):
+        if line.strip() == "[Interface]":
+            in_interface = True
+        elif line.strip().startswith("[") and in_interface:
+            break
+        if in_interface:
+            lines.append(line)
+
+    return "".join(lines)
 
 
 def sync_config_file() -> None:
-    """Write all active peers to the vpn-portal peers config file.
+    """Rewrite wg0.conf with the current active peers and run ``wg syncconf``.
 
-    Writes /var/lib/vpn-portal/peers.conf with [Peer] blocks for every
-    active peer in the database.  The host-side vpn-portal-wg-sync systemd
-    path unit detects changes to this file and runs ``wg addconf`` +
-    persists the peers to wg0.conf — no CAP_NET_ADMIN needed in the container.
+    Preserves the existing [Interface] block, replaces all [Peer] sections
+    with the current active peers from the database.
 
-    In WG_DEV_MODE the content is logged but the file is not written.
+    In WG_DEV_MODE the operation is logged but not executed.
     """
     from ..models import Peer  # local import to avoid circular deps at module load
 
-    peers_conf_path = "/var/lib/vpn-portal/peers.conf"
+    interface = current_app.config["WG_INTERFACE"]
+    conf_path = f"/etc/wireguard/{interface}.conf"
 
     active_peers = Peer.query.filter_by(is_active=True).all()
     peer_blocks = [
@@ -183,12 +200,21 @@ def sync_config_file() -> None:
     ]
     peer_section = "\n".join(peer_blocks)
 
+    syncconf_cmd = ["wg", "syncconf", interface, conf_path]
+
     if current_app.config["WG_DEV_MODE"]:
-        logger.info("[DEV MODE] Would write peer config to %s:\n%s", peers_conf_path, peer_section)
+        logger.info(
+            "[DEV MODE] Would write %s:\n%s\nand run: %s",
+            conf_path,
+            peer_section,
+            " ".join(syncconf_cmd),
+        )
         return
 
-    with open(peers_conf_path, "w") as fh:
-        fh.write(peer_section + "\n")
-    logger.info("Wrote %d active peer(s) to %s", len(active_peers), peers_conf_path)
-
-
+    interface_block = _read_interface_block(conf_path)
+    with open(conf_path, "w") as fh:
+        fh.write(interface_block)
+        if peer_section:
+            fh.write("\n" + peer_section + "\n")
+    subprocess.run(syncconf_cmd, check=True)
+    logger.info("Synced %d active peer(s) to %s", len(active_peers), conf_path)

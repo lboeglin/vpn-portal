@@ -376,3 +376,89 @@ class TestOpenRedirect:
         )
         location = resp.headers.get("Location", "")
         assert "/admin/" in location
+
+
+# ---------------------------------------------------------------------------
+# Change password
+# ---------------------------------------------------------------------------
+
+
+def _make_user(db, username="testuser", password="testpass123"):
+    user = User(username=username, role="user")
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    return user
+
+
+class TestChangePassword:
+    def test_wrong_current_password_rejected(self, client, db):
+        _make_user(db)
+        _login(client, "testuser", "testpass123")
+        resp = client.post(
+            "/auth/change-password",
+            data={
+                "current_password": "wrongpassword",
+                "new_password": "newpass456",
+                "confirm_new_password": "newpass456",
+            },
+            follow_redirects=True,
+        )
+        assert b"Current password is incorrect" in resp.data
+
+    def test_password_mismatch_rejected(self, client, db):
+        _make_user(db)
+        _login(client, "testuser", "testpass123")
+        resp = client.post(
+            "/auth/change-password",
+            data={
+                "current_password": "testpass123",
+                "new_password": "newpass456",
+                "confirm_new_password": "different789",
+            },
+            follow_redirects=True,
+        )
+        assert b"Passwords must match" in resp.data
+
+    def test_successful_change(self, client, db):
+        _make_user(db)
+        _login(client, "testuser", "testpass123")
+        resp = client.post(
+            "/auth/change-password",
+            data={
+                "current_password": "testpass123",
+                "new_password": "newpass456",
+                "confirm_new_password": "newpass456",
+            },
+            follow_redirects=True,
+        )
+        assert b"Password changed successfully" in resp.data
+        # Old password no longer works
+        client.get("/auth/logout")
+        resp = _login(client, "testuser", "testpass123")
+        assert b"Invalid username or password" in resp.data
+        # New password works
+        resp = _login(client, "testuser", "newpass456")
+        assert b"WireGuard VPN Portal" in resp.data
+
+    def test_rate_limit_triggers_on_sixth_attempt(self, client, db):
+        _make_user(db, username="ratelimituser", password="testpass123")
+        _login(client, "ratelimituser", "testpass123")
+        for _ in range(5):
+            client.post(
+                "/auth/change-password",
+                data={
+                    "current_password": "wrongpassword",
+                    "new_password": "newpass456",
+                    "confirm_new_password": "newpass456",
+                },
+            )
+        resp = client.post(
+            "/auth/change-password",
+            data={
+                "current_password": "wrongpassword",
+                "new_password": "newpass456",
+                "confirm_new_password": "newpass456",
+            },
+        )
+        assert resp.status_code == 429
