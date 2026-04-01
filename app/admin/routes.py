@@ -1,10 +1,10 @@
 from functools import wraps
 
-from flask import render_template, redirect, url_for, flash, abort
+from flask import render_template, redirect, url_for, flash, abort, request
 from flask_login import login_required, current_user
 
 from . import bp
-from .forms import CreateUserPeerForm
+from .forms import CreateUserPeerForm, EditUserForm
 from ..models import User, Peer
 from ..extensions import db
 from ..services.wireguard import (
@@ -97,3 +97,51 @@ def create_user():
         return redirect(url_for("admin.dashboard"))
 
     return render_template("admin/create_user.html", form=form)
+
+
+# ---------------------------------------------------------------------------
+# Edit user + peer name
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/users/<int:user_id>/edit", methods=["GET", "POST"])
+@admin_required
+def edit_user(user_id):
+    user = db.session.get(User, user_id)
+    if user is None:
+        abort(404)
+
+    peer = Peer.query.filter_by(user_id=user.id).first()
+
+    form = EditUserForm(obj=user)
+    if request.method == "GET" and peer:
+        form.peer_name.data = peer.name
+
+    if form.validate_on_submit():
+        new_username = form.username.data
+        if (
+            new_username != user.username
+            and User.query.filter_by(username=new_username).first()
+        ):
+            flash("Username already taken.", "danger")
+            return render_template("admin/edit_user.html", form=form, user=user)
+
+        user.username = new_username
+
+        if form.password.data:
+            user.set_password(form.password.data)
+
+        if peer:
+            peer.name = form.peer_name.data
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            flash(f"Failed to save changes: {exc}", "danger")
+            return render_template("admin/edit_user.html", form=form, user=user)
+
+        flash(f"User '{user.username}' updated.", "success")
+        return redirect(url_for("admin.dashboard"))
+
+    return render_template("admin/edit_user.html", form=form, user=user)

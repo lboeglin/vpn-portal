@@ -61,6 +61,7 @@
           <th>Assigned IP</th>
           <th>Status</th>
           <th>Created</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -78,6 +79,10 @@
           </td>
           <td class="text-muted small">
             {{ peer.created_at.strftime('%Y-%m-%d') if peer.created_at else '—' }}
+          </td>
+          <td>
+            <a href="{{ url_for('admin.edit_user', user_id=peer.user_id) }}"
+               class="btn btn-sm btn-outline-secondary">Edit</a>
           </td>
         </tr>
         {% endfor %}

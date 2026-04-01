@@ -462,3 +462,120 @@ class TestChangePassword:
             },
         )
         assert resp.status_code == 429
+
+
+# ---------------------------------------------------------------------------
+# Admin: edit user
+# ---------------------------------------------------------------------------
+
+
+class TestAdminEditUser:
+    @pytest.fixture(autouse=True)
+    def setup(self, client, db):
+        _make_admin(db)
+        _login(client, "admin", "adminpass123")
+        _create_user_via_admin(client, "editme", "editmepass123", "OldPeer")
+        self.client = client
+        self.db = db
+
+    def _user(self):
+        return User.query.filter_by(username="editme").first()
+
+    def _edit(self, data, follow_redirects=True):
+        user = self._user()
+        return self.client.post(
+            f"/admin/users/{user.id}/edit",
+            data=data,
+            follow_redirects=follow_redirects,
+        )
+
+    def test_edit_page_loads(self):
+        user = self._user()
+        resp = self.client.get(f"/admin/users/{user.id}/edit")
+        assert resp.status_code == 200
+        assert b"editme" in resp.data
+
+    def test_edit_username_succeeds(self):
+        resp = self._edit(
+            {
+                "username": "renamed",
+                "password": "",
+                "confirm_password": "",
+                "peer_name": "OldPeer",
+            }
+        )
+        assert resp.status_code == 200
+        assert b"updated" in resp.data
+        assert User.query.filter_by(username="renamed").first() is not None
+        assert User.query.filter_by(username="editme").first() is None
+
+    def test_duplicate_username_rejected(self):
+        # Create a second user, then try to rename first to its name
+        other = User(username="other", role="user")
+        other.set_password("otherpass123")
+        self.db.session.add(other)
+        self.db.session.commit()
+        resp = self._edit(
+            {
+                "username": "other",
+                "password": "",
+                "confirm_password": "",
+                "peer_name": "OldPeer",
+            }
+        )
+        assert b"already taken" in resp.data
+        assert User.query.filter_by(username="editme").first() is not None
+
+    def test_blank_password_keeps_existing_hash(self):
+        user = self._user()
+        old_hash = user.password_hash
+        self._edit(
+            {
+                "username": "editme",
+                "password": "",
+                "confirm_password": "",
+                "peer_name": "OldPeer",
+            }
+        )
+        self.db.session.expire_all()
+        assert User.query.filter_by(username="editme").first().password_hash == old_hash
+
+    def test_new_password_is_applied(self):
+        self._edit(
+            {
+                "username": "editme",
+                "password": "newpass456",
+                "confirm_password": "newpass456",
+                "peer_name": "OldPeer",
+            }
+        )
+        self.client.get("/auth/logout")
+        resp = _login(self.client, "editme", "newpass456")
+        assert b"WireGuard VPN Portal" in resp.data
+
+    def test_peer_name_updates(self):
+        self._edit(
+            {
+                "username": "editme",
+                "password": "",
+                "confirm_password": "",
+                "peer_name": "NewName",
+            }
+        )
+        user = User.query.filter_by(username="editme").first()
+        assert user.peers[0].name == "NewName"
+
+    def test_non_admin_gets_403(self, db):
+        regular = User(username="regular", role="user")
+        regular.set_password("regularpass123")
+        db.session.add(regular)
+        db.session.commit()
+        self.client.get("/auth/logout")
+        _login(self.client, "regular", "regularpass123")
+        user = User.query.filter_by(username="editme").first()
+        resp = self.client.post(f"/admin/users/{user.id}/edit", data={})
+        assert resp.status_code == 403
+
+    def test_nonexistent_user_returns_404(self):
+        resp = self.client.get("/admin/users/99999/edit")
+        assert resp.status_code == 404
