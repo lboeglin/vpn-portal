@@ -27,3 +27,4 @@ services:
 
 volumes:
   vpn-portal-data:
+    external: true
